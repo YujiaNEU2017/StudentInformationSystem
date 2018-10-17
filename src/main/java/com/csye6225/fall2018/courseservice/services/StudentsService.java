@@ -92,6 +92,11 @@ public class StudentsService
         {
             return false;
         }
+        else if (student.getCoursesAssisted() == null || (student.getCoursesAssisted() != null
+                && !student.getCoursesAssisted().stream().allMatch(courseId -> courseMap.containsKey(courseId))))
+        {
+            return false;
+        }
         else if (student.getCoursesEnrolled() == null || (student.getCoursesEnrolled() != null
                 && !student.getCoursesEnrolled().stream().allMatch(courseId -> courseMap.containsKey(courseId))))
         {
