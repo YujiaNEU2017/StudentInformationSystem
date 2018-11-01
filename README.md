@@ -57,13 +57,13 @@ Get by courseId: /lectures?courseId=XXX
 Get one: /lectures/{lectureId}  
 Post: /lectures   
 {  
-&nbsp;&nbsp;"courseId": "{courseId}",  (set null for an empty vale) 
+&nbsp;&nbsp;"courseId": "{courseId}",  (set null for an empty vale)  
 &nbsp;&nbsp;"material": "XXXX",  
 &nbsp;&nbsp;"notes": "XXXX"  
 }   
 Put: /lectures/{lectureId}    
 {  
-&nbsp;&nbsp;"courseId": "{courseId}",  (set null for an empty vale) 
+&nbsp;&nbsp;"courseId": "{courseId}",  (set null for an empty vale)  
 &nbsp;&nbsp;"material": "XXXX",  
 &nbsp;&nbsp;"notes": "XXXX"  
 }   
