@@ -18,6 +18,7 @@ Delete: /programs/{programName}
 
 * Courses:  
 Get all: /courses  
+Get by programName: /courses?programName=XXX  
 Get one: /courses/{courseId}  
 Post: /courses   
 {  
@@ -52,6 +53,7 @@ Put roster: /courses/{courseId}/roster
 
 * Lectures:  
 Get all: /lectures  
+Get by courseId: /lectures?courseId=XXX  
 Get one: /lectures/{lectureId}  
 Post: /lectures   
 {  
@@ -69,6 +71,7 @@ Delete: /lectures/{lectureId}
 
 * Students:  
 Get all: /students  
+Get by programName and/or courseId: /students?programName=XXX&courseId=XXX  
 Get one: /students/{studentId}  
 Post: /students  
 {  
@@ -90,6 +93,7 @@ Delete: /students/{studentId}
 
 * Professors:  
 Get all: /professors  
+Get by department and/or year and/or size: /professors?department=XXX&year=XXX&size=XX
 Get one: /professors/{professorId}  
 Post: /professors    
 {  
