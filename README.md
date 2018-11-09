@@ -82,7 +82,7 @@ Put: /boards/{boardId}
 }  
 Delete: /boards/{boardId}  
 
-* Announcement:  (if a board has been deleted, all announcements related to the board will be removed)
+* Announcement:  (if a board has been deleted, all announcements related to the board will be removed)  
 Get all: /announcements  
 Get one: /announcements/{boardId_announcementId}  
 Post: /announcements   
