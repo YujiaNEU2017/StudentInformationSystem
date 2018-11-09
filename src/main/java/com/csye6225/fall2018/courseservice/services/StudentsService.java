@@ -1,142 +1,152 @@
 package com.csye6225.fall2018.courseservice.services;
 
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.Set;
 
+import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapper;
+import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBScanExpression;
 import com.csye6225.fall2018.courseservice.datamodels.Course;
-import com.csye6225.fall2018.courseservice.datamodels.InMemoryDatabase;
-import com.csye6225.fall2018.courseservice.datamodels.Program;
+import com.csye6225.fall2018.courseservice.datamodels.DynamoDBConnector;
 import com.csye6225.fall2018.courseservice.datamodels.Student;
-
-import jersey.repackaged.com.google.common.collect.Lists;
 
 public class StudentsService
 {
-    final private static Map<Long, Student> studentMap = InMemoryDatabase.getStudentsDB();
-    final private static Map<String, Course> courseMap = InMemoryDatabase.getCoursesDB();
-    final private static Map<String, Program> programMap = InMemoryDatabase.getProgramsDB();
+    final private DynamoDBMapper dynamoDBMapper;
+
+    public StudentsService()
+    {
+        dynamoDBMapper = new DynamoDBMapper(DynamoDBConnector.getClient());
+    }
 
     public List<Student> getAllStudents()
     {
-        return Lists.newArrayList(studentMap.values());
+        return dynamoDBMapper.scan(Student.class, new DynamoDBScanExpression());
     }
 
     public Student addStudent(final Student student)
     {
-        if (!verifyStudent(student))
+        if (!verifyStudent(student) || getStudent(student.getStudentId()) != null)
         {
             return null;
         }
-        final long nextAvaliableId = studentMap.size() + 1;
-        student.setStudentId(nextAvaliableId);
-        studentMap.put(nextAvaliableId, student);
-        addToOtherDB(student);
-        return studentMap.get(nextAvaliableId);
+        dynamoDBMapper.save(student);
+        addToOtherDB(student, null);
+        return getStudent(student.getStudentId());
     }
 
-    public Student getStudent(final long studentId)
+    public Student getStudent(final String studentId)
     {
-        return studentMap.get(studentId);
+        final List<Student> students = dynamoDBMapper.query(Student.class,
+                UtilsService.<Student> composeQueryExpression("studentId", studentId));
+        if (students == null || students.isEmpty())
+        {
+            return null;
+        }
+        return students.get(0);
     }
 
-    public Student updateStudent(final long studentId, final Student student)
+    public Student updateStudent(final String studentId, final Student student)
     {
-        final Student oldStudent = studentMap.get(studentId);
+        final Student oldStudent = getStudent(studentId);
         if (oldStudent == null || !verifyStudent(student))
         {
             return null;
         }
+        student.setId(oldStudent.getId());
         student.setStudentId(oldStudent.getStudentId());
-        studentMap.put(oldStudent.getStudentId(), student);
-        deleteFromOtherDB(oldStudent);
-        addToOtherDB(student);
-        return student;
+        dynamoDBMapper.save(student);
+        removeFromOtherDB(oldStudent, student);
+        addToOtherDB(student, oldStudent);
+        return getStudent(studentId);
     }
 
-    public Student deleteStudent(final long studentId)
+    public Student deleteStudent(final String studentId)
     {
-        final Student oldStudent = studentMap.get(studentId);
+        final Student oldStudent = getStudent(studentId);
         if (oldStudent == null)
         {
             return null;
         }
-        studentMap.remove(studentId);
-        deleteFromOtherDB(oldStudent);
+
+        dynamoDBMapper.delete(oldStudent);
+        removeFromOtherDB(oldStudent, null);
         return oldStudent;
-    }
-
-    public List<Student> getStudentsByCourseId(final List<Student> students, final String courseId)
-    {
-        if (!courseMap.containsKey(courseId))
-        {
-            return Lists.newArrayList();
-        }
-        return courseMap.get(courseId).getRoster().stream().map(studentId -> studentMap.get(studentId))
-                .collect(Collectors.toList());
-    }
-
-    public List<Student> getStudentsByProgramName(final List<Student> students, final String programName)
-    {
-        if (!programMap.containsKey(programName))
-        {
-            return Lists.newArrayList();
-        }
-        return programMap.get(programName).getStudents().stream().map(studentId -> studentMap.get(studentId))
-                .collect(Collectors.toList());
     }
 
     private boolean verifyStudent(final Student student)
     {
-        if (student.getProgramName() != null && !programMap.containsKey(student.getProgramName()))
+        student.setId(null);
+        if (student.getRegisteredCourses() != null && student.getRegisteredCourses().isEmpty())
+        {
+            student.setRegisteredCourses(null);
+        }
+
+        final Set<String> registeredCourses = student.getRegisteredCourses();
+        if (student.getStudentId() == null || student.getStudentId().isEmpty())
         {
             return false;
         }
-        else if (student.getCoursesAssisted() == null || (student.getCoursesAssisted() != null
-                && !student.getCoursesAssisted().stream().allMatch(courseId -> courseMap.containsKey(courseId))))
-        {
-            return false;
-        }
-        else if (student.getCoursesEnrolled() == null || (student.getCoursesEnrolled() != null
-                && !student.getCoursesEnrolled().stream().allMatch(courseId -> courseMap.containsKey(courseId))))
+        if (registeredCourses != null && !registeredCourses.isEmpty() && dynamoDBMapper.count(Course.class,
+                UtilsService.composeScanExpression("courseId", registeredCourses)) != registeredCourses.size())
         {
             return false;
         }
         return true;
     }
 
-    private void addToOtherDB(final Student student)
+    private void removeFromOtherDB(final Student oldStudent, final Student student)
     {
-        if (student.getCoursesEnrolled() != null)
+        final String oldTaId = oldStudent.getStudentId();
+        if (student == null)
         {
-            student.getCoursesEnrolled()
-                    .forEach(courseId -> courseMap.get(courseId).getRoster().add(student.getStudentId()));
+            final List<Course> courses = dynamoDBMapper.scan(Course.class, UtilsService.composeScanExpression("taId", oldTaId));
+            if (courses != null && !courses.isEmpty())
+            {
+                courses.forEach(course -> course.setTaId(null));
+                dynamoDBMapper.batchSave(courses);
+            }
         }
-        if (student.getCoursesAssisted() != null)
+
+        final Set<String> oldRegisteredCourses = oldStudent.getRegisteredCourses();
+        if ((oldRegisteredCourses != null && !oldRegisteredCourses.isEmpty())
+                && (student == null || !oldRegisteredCourses.equals(student.getRegisteredCourses())))
         {
-            student.getCoursesAssisted()
-                    .forEach(courseId -> courseMap.get(courseId).setStudentTAId(student.getStudentId()));
-        }
-        if (student.getProgramName() != null)
-        {
-            programMap.get(student.getProgramName()).getStudents().add(student.getStudentId());
+            final List<Course> courses = dynamoDBMapper.scan(Course.class,
+                    UtilsService.composeScanExpression("courseId", oldRegisteredCourses));
+            courses.forEach(course ->
+            {
+                if (course.getRoster() != null)
+                {
+                    course.getRoster().remove(oldStudent.getStudentId());
+                    if (course.getRoster().isEmpty())
+                    {
+                        course.setRoster(null);
+                    }
+                }
+            });
+            dynamoDBMapper.batchSave(courses);
         }
     }
 
-    private void deleteFromOtherDB(final Student student)
+    private void addToOtherDB(final Student student, final Student oldStudent)
     {
-        if (student.getCoursesEnrolled() != null)
+        final Set<String> registeredCourses = student.getRegisteredCourses();
+        if ((registeredCourses != null && !registeredCourses.isEmpty())
+                && (oldStudent == null || !registeredCourses.equals(oldStudent.getRegisteredCourses())))
         {
-            student.getCoursesEnrolled()
-                    .forEach(courseId -> courseMap.get(courseId).getRoster().remove(student.getStudentId()));
-        }
-        if (student.getCoursesAssisted() != null)
-        {
-            student.getCoursesAssisted().forEach(courseId -> courseMap.get(courseId).setStudentTAId(0));
-        }
-        if (student.getProgramName() != null)
-        {
-            programMap.get(student.getProgramName()).getStudents().remove(student.getStudentId());
+            final List<Course> courses = dynamoDBMapper.scan(Course.class,
+                    UtilsService.composeScanExpression("courseId", registeredCourses));
+            courses.forEach(course ->
+            {
+                if (course.getRoster() == null)
+                {
+                    course.setRoster(new HashSet<>());
+                }
+                course.getRoster().add(student.getStudentId());
+            });
+            dynamoDBMapper.batchSave(courses);
         }
     }
+
 }

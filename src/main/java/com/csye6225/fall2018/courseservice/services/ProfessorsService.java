@@ -1,113 +1,93 @@
 package com.csye6225.fall2018.courseservice.services;
 
-import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
+import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapper;
+import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBScanExpression;
 import com.csye6225.fall2018.courseservice.datamodels.Course;
-import com.csye6225.fall2018.courseservice.datamodels.InMemoryDatabase;
+import com.csye6225.fall2018.courseservice.datamodels.DynamoDBConnector;
 import com.csye6225.fall2018.courseservice.datamodels.Professor;
-
-import jersey.repackaged.com.google.common.collect.Lists;
 
 public class ProfessorsService
 {
-    final private static Map<Long, Professor> professorMap = InMemoryDatabase.getProfessorsDB();
-    final private static Map<String, Course> courseMap = InMemoryDatabase.getCoursesDB();
+    final private DynamoDBMapper dynamoDBMapper;
+
+    public ProfessorsService()
+    {
+        dynamoDBMapper = new DynamoDBMapper(DynamoDBConnector.getClient());
+    }
 
     public List<Professor> getAllProfessors()
     {
-        return Lists.newArrayList(professorMap.values());
+        return dynamoDBMapper.scan(Professor.class, new DynamoDBScanExpression());
     }
 
     public Professor addProfessor(final Professor professor)
     {
-        if (!verifyProfessor(professor))
+        if (!verifyProfessor(professor) || getProfessor(professor.getProfessorId()) != null)
         {
             return null;
         }
-        final long nextAvaliableId = professorMap.size() + 1;
-        professor.setProfessorId(nextAvaliableId);
-        professorMap.put(nextAvaliableId, professor);
-        addToOtherDB(professor);
-        return professorMap.get(nextAvaliableId);
+        dynamoDBMapper.save(professor);
+        return getProfessor(professor.getProfessorId());
     }
 
-    public Professor getProfessor(final long professorId)
+    public Professor getProfessor(final String professorId)
     {
-        return professorMap.get(professorId);
+        final List<Professor> professors = dynamoDBMapper.query(Professor.class,
+                UtilsService.<Professor> composeQueryExpression("professorId", professorId));
+        if (professors == null || professors.isEmpty())
+        {
+            return null;
+        }
+        return professors.get(0);
     }
 
-    public Professor updateProfessor(final long professorId, final Professor professor)
+    public Professor updateProfessor(final String professorId, final Professor professor)
     {
-        final Professor oldProfessor = professorMap.get(professorId);
+        final Professor oldProfessor = getProfessor(professorId);
         if (oldProfessor == null || !verifyProfessor(professor))
         {
             return null;
         }
+        professor.setId(oldProfessor.getId());
         professor.setProfessorId(oldProfessor.getProfessorId());
-        professorMap.put(oldProfessor.getProfessorId(), professor);
-        deleteFromOtherDB(oldProfessor);
-        addToOtherDB(professor);
-        return professor;
+        dynamoDBMapper.save(professor);
+        return getProfessor(professorId);
     }
 
-    public Professor deleteProfessor(final long professorId)
+    public Professor deleteProfessor(final String professorId)
     {
-        final Professor oldProfessor = professorMap.get(professorId);
+        final Professor oldProfessor = getProfessor(professorId);
         if (oldProfessor == null)
         {
             return null;
         }
-        professorMap.remove(professorId);
-        deleteFromOtherDB(oldProfessor);
+        dynamoDBMapper.delete(oldProfessor);
+        removeFromOtherDB(oldProfessor);
         return oldProfessor;
-    }
-
-    public List<Professor> getProfessorsByDepartment(final List<Professor> professors, final String department)
-    {
-        return professors.stream().filter(professor -> professor.getDepartment().equals(department))
-                .collect(Collectors.toList());
-    }
-
-    public List<Professor> getProfessorsByYear(final List<Professor> professors, final int year)
-    {
-        return professors.stream().filter(professor -> professor.getJoiningDate().getYear() == (year - 1900))
-                .collect(Collectors.toList());
-    }
-
-    public List<Professor> getProfessorsBySize(final List<Professor> professors, final int size)
-    {
-        return professors.stream().sorted(Comparator.comparing(Professor::getJoiningDate)).collect(Collectors.toList())
-                .subList(0, Math.min(size, professors.size()));
     }
 
     private boolean verifyProfessor(final Professor professor)
     {
-        if (professor.getCoursesTaught() == null || (professor.getCoursesTaught() != null
-                && !professor.getCoursesTaught().stream().allMatch(courseId -> courseMap.containsKey(courseId))))
+        professor.setId(null);
+        if (professor.getProfessorId() == null || professor.getProfessorId().isEmpty())
         {
             return false;
         }
-
         return true;
     }
 
-    private void addToOtherDB(final Professor professor)
+    private void removeFromOtherDB(final Professor professor)
     {
-        if (professor.getCoursesTaught() != null)
+        final String oldProfessorId = professor.getProfessorId();
+        final List<Course> courses = dynamoDBMapper.scan(Course.class,
+                UtilsService.composeScanExpression("professorId", oldProfessorId));
+        if (courses != null && !courses.isEmpty())
         {
-            professor.getCoursesTaught()
-                    .forEach(courseId -> courseMap.get(courseId).setProfessorId(professor.getProfessorId()));
+            courses.forEach(course -> course.setProfessorId(null));
+            dynamoDBMapper.batchSave(courses);
         }
     }
 
-    private void deleteFromOtherDB(final Professor professor)
-    {
-        if (professor.getCoursesTaught() != null)
-        {
-            professor.getCoursesTaught().forEach(courseId -> courseMap.get(courseId).setProfessorId(0));
-        }
-    }
 }
