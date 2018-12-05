@@ -31,7 +31,8 @@ Post: /students
 &nbsp;&nbsp;"lastName": "XXX",  
 &nbsp;&nbsp;"joiningDate": "XXX",  
 &nbsp;&nbsp;"department": "XXX",  
-&nbsp;&nbsp;"registeredCourses": [{courseId}, {courseId}...]    
+&nbsp;&nbsp;"registeredCourses": [{courseId}, {courseId}...],  
+&nbsp;&nbsp;"emailId": "XXX", (cannot be null or empty)  
 }  
 Put: /students/{studentId}  
 {  
@@ -40,9 +41,12 @@ Put: /students/{studentId}
 &nbsp;&nbsp;"lastName": "XXX",  
 &nbsp;&nbsp;"joiningDate": "XXX",  
 &nbsp;&nbsp;"department": "XXX",  
-&nbsp;&nbsp;"registeredCourses": [{courseId}, {courseId}...]    
+&nbsp;&nbsp;"registeredCourses": [{courseId}, {courseId}...],  
+&nbsp;&nbsp;"emailId": "XXX", (cannot be null or empty)  
 }  
 Delete: /students/{studentId}  
+Post(Register Courses, text/plain): /{studentId}/register  
+{courseId},{courseId}...  (splitted by ',')
 
 * Courses:  
 Get all: /courses  
