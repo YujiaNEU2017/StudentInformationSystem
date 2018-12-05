@@ -45,7 +45,7 @@ Put: /students/{studentId}
 &nbsp;&nbsp;"emailId": "XXX", (cannot be null or empty)  
 }  
 Delete: /students/{studentId}  
-Post(Register Courses, text/plain): /{studentId}/register  
+Post (Register Courses, text/plain): /{studentId}/register  
 {courseId},{courseId}...  (splitted by ',')
 
 * Courses:  
