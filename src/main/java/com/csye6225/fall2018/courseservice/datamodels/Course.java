@@ -18,6 +18,7 @@ public class Course
     private String department;
     private String boardId;
     private Set<String> roster;
+    private String notificationTopic;
 
     public Course()
     {
@@ -100,6 +101,17 @@ public class Course
     public void setRoster(Set<String> roster)
     {
         this.roster = roster;
+    }
+
+    @DynamoDBAttribute(attributeName = "notificationTopic")
+    public String getNotificationTopic()
+    {
+        return notificationTopic;
+    }
+
+    public void setNotificationTopic(String notificationTopic)
+    {
+        this.notificationTopic = notificationTopic;
     }
 
 }

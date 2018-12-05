@@ -32,6 +32,7 @@ public class CoursesService
         {
             return null;
         }
+        course.setNotificationTopic(UtilsService.CreateTopic(course.getCourseId()));
         dynamoDBMapper.save(course);
         addToOtherDB(course, null);
         return getCourse(course.getCourseId());
@@ -57,6 +58,7 @@ public class CoursesService
         }
         course.setId(oldCourse.getId());
         course.setCourseId(oldCourse.getCourseId());
+        course.setNotificationTopic(oldCourse.getNotificationTopic());
         dynamoDBMapper.save(course);
         removeFromOtherDB(oldCourse, course);
         addToOtherDB(course, oldCourse);
@@ -71,6 +73,7 @@ public class CoursesService
             return null;
         }
         dynamoDBMapper.delete(oldCourse);
+        UtilsService.DeleteTopic(oldCourse.getNotificationTopic());
         removeFromOtherDB(oldCourse, null);
         return oldCourse;
     }
@@ -78,6 +81,7 @@ public class CoursesService
     private boolean verifyCourse(final Course course)
     {
         course.setId(null);
+        course.setNotificationTopic(null);
         if (course.getRoster() != null && course.getRoster().isEmpty())
         {
             course.setRoster(null);
@@ -87,8 +91,9 @@ public class CoursesService
         {
             return false;
         }
-        if (course.getProfessorId() != null && !course.getProfessorId().isEmpty() && dynamoDBMapper.count(Professor.class,
-                UtilsService.<Professor> composeQueryExpression("professorId", course.getProfessorId())) != 1)
+        if (course.getProfessorId() != null && !course.getProfessorId().isEmpty()
+                && dynamoDBMapper.count(Professor.class,
+                        UtilsService.<Professor> composeQueryExpression("professorId", course.getProfessorId())) != 1)
         {
             return false;
         }
@@ -113,7 +118,8 @@ public class CoursesService
     private void removeFromOtherDB(final Course oldCourse, final Course course)
     {
         final String oldBoardId = oldCourse.getBoardId();
-        if ((oldBoardId != null && !oldBoardId.isEmpty()) && (course == null || !oldBoardId.equals(course.getBoardId())))
+        if ((oldBoardId != null && !oldBoardId.isEmpty())
+                && (course == null || !oldBoardId.equals(course.getBoardId())))
         {
             final List<Board> boards = dynamoDBMapper.query(Board.class,
                     UtilsService.<Board> composeQueryExpression("boardId", oldBoardId));
@@ -148,7 +154,8 @@ public class CoursesService
     private void addToOtherDB(final Course course, final Course oldCourse)
     {
         final String boardId = course.getBoardId();
-        if ((boardId != null && !boardId.isEmpty()) && (oldCourse == null || !course.getBoardId().equals(oldCourse.getBoardId())))
+        if ((boardId != null && !boardId.isEmpty())
+                && (oldCourse == null || !course.getBoardId().equals(oldCourse.getBoardId())))
         {
             final List<Board> boards = dynamoDBMapper.query(Board.class,
                     UtilsService.<Board> composeQueryExpression("boardId", boardId));

@@ -3,12 +3,12 @@ package com.csye6225.fall2018.courseservice.datamodels;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
+import com.amazonaws.services.sns.AmazonSNS;
+import com.amazonaws.services.sns.AmazonSNSClientBuilder;
 
-public class DynamoDBConnector
+public class SNSClientConnector
 {
-    private static AmazonDynamoDB dynamoDB;
+    private static AmazonSNS snsClient;
 
     private static void init()
     {
@@ -24,19 +24,18 @@ public class DynamoDBConnector
             credentialsProvider.getCredentials();
         }
 
-        dynamoDB = AmazonDynamoDBClientBuilder.standard().withCredentials(credentialsProvider).withRegion("us-west-2")
+        snsClient = AmazonSNSClientBuilder.standard().withCredentials(credentialsProvider).withRegion("us-west-2")
                 .build();
-        System.out.println("DynamoDB Client Created");
+        System.out.println("SNS Client Created");
 
     }
 
-    synchronized public static AmazonDynamoDB getClient()
+    synchronized public static AmazonSNS getClient()
     {
-        if (dynamoDB == null)
+        if (snsClient == null)
         {
             init();
         }
-        return dynamoDB;
+        return snsClient;
     }
-
 }

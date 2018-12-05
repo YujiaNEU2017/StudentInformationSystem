@@ -1,5 +1,6 @@
 package com.csye6225.fall2018.courseservice.services;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -9,6 +10,8 @@ import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBScanExpression;
 import com.csye6225.fall2018.courseservice.datamodels.Course;
 import com.csye6225.fall2018.courseservice.datamodels.DynamoDBConnector;
 import com.csye6225.fall2018.courseservice.datamodels.Student;
+
+import jersey.repackaged.com.google.common.collect.Sets;
 
 public class StudentsService
 {
@@ -30,6 +33,7 @@ public class StudentsService
         {
             return null;
         }
+        subscribeTopics(student.getRegisteredCourses(), student.getEmailId());
         dynamoDBMapper.save(student);
         addToOtherDB(student, null);
         return getStudent(student.getStudentId());
@@ -58,6 +62,7 @@ public class StudentsService
         dynamoDBMapper.save(student);
         removeFromOtherDB(oldStudent, student);
         addToOtherDB(student, oldStudent);
+        processSNSUpdate(student, oldStudent);
         return getStudent(studentId);
     }
 
@@ -68,10 +73,54 @@ public class StudentsService
         {
             return null;
         }
-
         dynamoDBMapper.delete(oldStudent);
         removeFromOtherDB(oldStudent, null);
         return oldStudent;
+    }
+
+    public Student registerCourses(final String studentId, final Set<String> coursesRegistration)
+    {
+        final Student student = getStudent(studentId);
+        if (student == null || !verifyCoursesRegistration(student, coursesRegistration))
+        {
+            return null;
+        }
+
+        if (student.getRegisteredCourses() == null)
+        {
+            student.setRegisteredCourses(coursesRegistration);
+        }
+        else
+        {
+            student.getRegisteredCourses().addAll(coursesRegistration);
+        }
+        dynamoDBMapper.save(student);
+        addToOtherDB(student, null);
+        subscribeTopics(coursesRegistration, student.getEmailId());
+        return student;
+    }
+
+    private boolean verifyCoursesRegistration(final Student student, final Set<String> coursesRegistration)
+    {
+        final Set<String> registeredCourses = student.getRegisteredCourses() != null ? student.getRegisteredCourses()
+                : Collections.emptySet();
+        coursesRegistration.removeAll(registeredCourses);
+        if (coursesRegistration.isEmpty())
+        {
+            return false;
+        }
+        else if (student.getRegisteredCourses() != null
+                && (student.getRegisteredCourses().size() + coursesRegistration.size()) > 3)
+        {
+            return false;
+        }
+
+        if (dynamoDBMapper.count(Course.class,
+                UtilsService.composeScanExpression("courseId", coursesRegistration)) != coursesRegistration.size())
+        {
+            return false;
+        }
+        return true;
     }
 
     private boolean verifyStudent(final Student student)
@@ -81,12 +130,22 @@ public class StudentsService
         {
             student.setRegisteredCourses(null);
         }
+        else if (student.getRegisteredCourses() != null && student.getRegisteredCourses().size() > 3)
+        {
+            return false;
+        }
 
-        final Set<String> registeredCourses = student.getRegisteredCourses();
+        if (student.getEmailId() == null || student.getEmailId().isEmpty())
+        {
+            return false;
+        }
+
         if (student.getStudentId() == null || student.getStudentId().isEmpty())
         {
             return false;
         }
+
+        final Set<String> registeredCourses = student.getRegisteredCourses();
         if (registeredCourses != null && !registeredCourses.isEmpty() && dynamoDBMapper.count(Course.class,
                 UtilsService.composeScanExpression("courseId", registeredCourses)) != registeredCourses.size())
         {
@@ -100,7 +159,8 @@ public class StudentsService
         final String oldTaId = oldStudent.getStudentId();
         if (student == null)
         {
-            final List<Course> courses = dynamoDBMapper.scan(Course.class, UtilsService.composeScanExpression("taId", oldTaId));
+            final List<Course> courses = dynamoDBMapper.scan(Course.class,
+                    UtilsService.composeScanExpression("taId", oldTaId));
             if (courses != null && !courses.isEmpty())
             {
                 courses.forEach(course -> course.setTaId(null));
@@ -149,4 +209,40 @@ public class StudentsService
         }
     }
 
+    private void processSNSUpdate(final Student student, final Student oldStudent)
+    {
+        final Set<String> newRegisteredCourses = student.getRegisteredCourses() != null ? student.getRegisteredCourses()
+                : Collections.emptySet();
+        final Set<String> oldRegisteredCourses = oldStudent.getRegisteredCourses() != null
+                ? oldStudent.getRegisteredCourses()
+                : Collections.emptySet();
+        if (newRegisteredCourses.isEmpty() && oldRegisteredCourses.isEmpty())
+        {
+            return;
+        }
+        else if (newRegisteredCourses.equals(oldRegisteredCourses))
+        {
+            return;
+        }
+
+        if (!student.getEmailId().equals(oldStudent.getEmailId()))
+        {
+            subscribeTopics(newRegisteredCourses, student.getEmailId());
+        }
+        subscribeTopics(Sets.difference(newRegisteredCourses, oldRegisteredCourses), student.getEmailId());
+    }
+
+    private void subscribeTopics(final Set<String> newRegisteredCourses, final String email)
+    {
+        if (newRegisteredCourses == null || newRegisteredCourses.isEmpty())
+        {
+            return;
+        }
+        newRegisteredCourses.forEach(courseId ->
+        {
+            final List<Course> courses = dynamoDBMapper.query(Course.class,
+                    UtilsService.<Course> composeQueryExpression("courseId", courseId));
+            UtilsService.SubscribeTopic(courses.get(0).getNotificationTopic(), email);
+        });
+    }
 }

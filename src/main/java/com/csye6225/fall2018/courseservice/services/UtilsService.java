@@ -7,9 +7,14 @@ import java.util.Set;
 import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBQueryExpression;
 import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBScanExpression;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
+import com.amazonaws.services.sns.AmazonSNS;
+import com.amazonaws.services.sns.model.CreateTopicResult;
+import com.amazonaws.services.sns.model.SubscribeResult;
+import com.csye6225.fall2018.courseservice.datamodels.SNSClientConnector;
 
 public class UtilsService
 {
+    private static AmazonSNS snsClient = SNSClientConnector.getClient();
 
     public static <T> DynamoDBQueryExpression<T> composeQueryExpression(final String idxName, final String idxValue)
     {
@@ -29,7 +34,8 @@ public class UtilsService
         eav.put(":v2", new AttributeValue().withS(rangeKeyValue));
 
         return new DynamoDBQueryExpression<T>().withIndexName(idxName + "-" + rangeKeyName).withConsistentRead(false)
-                .withKeyConditionExpression(idxName + " = :v1 and " + rangeKeyName + " = :v2").withExpressionAttributeValues(eav);
+                .withKeyConditionExpression(idxName + " = :v1 and " + rangeKeyName + " = :v2")
+                .withExpressionAttributeValues(eav);
     }
 
     public static DynamoDBScanExpression composeScanExpression(final String idxName, final String idxValue)
@@ -53,6 +59,33 @@ public class UtilsService
                 .withFilterExpression(idxName + " in (:"
                         + idxValues.stream().reduce((idxV1, idxV2) -> idxV1 + ", :" + idxV2).orElse(null) + ")")
                 .withExpressionAttributeValues(eav);
+    }
+
+    public static String CreateTopic(final String topicName)
+    {
+        final CreateTopicResult createTopicResult = snsClient.createTopic(topicName);
+        return createTopicResult.getTopicArn();
+    }
+
+    public static String SubscribeTopic(final String topicArn, final String email)
+    {
+        final SubscribeResult subResult = snsClient.subscribe(topicArn, "email", email);
+        return subResult.getSubscriptionArn();
+    }
+
+    public static void UnsubscribeTopic(final String subscriptionArn)
+    {
+        snsClient.unsubscribe(subscriptionArn);
+    }
+
+    public static void PublishMsg(final String topicArn, final String message)
+    {
+        snsClient.publish(topicArn, message);
+    }
+
+    public static void DeleteTopic(final String topicArn)
+    {
+        snsClient.deleteTopic(topicArn);
     }
 
 }
