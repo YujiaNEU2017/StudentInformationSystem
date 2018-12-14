@@ -91,19 +91,19 @@ Get all: /registerOffering
 Get one: /registerOffering/{registrarId}  
 Post: /registerOffering   
 {  
-&nbsp;&nbsp;"boardId": "{registrarId}", (cannot be null or empty)  
-&nbsp;&nbsp;"courseId": "{offeringId}" (null or an existing courseId)  
-&nbsp;&nbsp;"boardId": "XXX",  
-&nbsp;&nbsp;"courseId": "XXX",  
-&nbsp;&nbsp;"courseId": 3000   
+&nbsp;&nbsp;"registrarId": "{registrarId}", (cannot be null or empty)  
+&nbsp;&nbsp;"offeringId": "{courseId}" (null or an existing courseId)  
+&nbsp;&nbsp;"offeringType": "XXX",  
+&nbsp;&nbsp;"department": "XXX",  
+&nbsp;&nbsp;"perUnitPrice": 3000   
 }  
 Put: /registerOffering/{registrarId}  
 {  
-&nbsp;&nbsp;"boardId": "{registrarId}", (cannot be null or empty)  
-&nbsp;&nbsp;"courseId": "{offeringId}" (null or an existing courseId)  
-&nbsp;&nbsp;"boardId": "XXX",  
-&nbsp;&nbsp;"courseId": "XXX",  
-&nbsp;&nbsp;"courseId": 3000   
+&nbsp;&nbsp;"registrarId": "{registrarId}", (cannot be null or empty)  
+&nbsp;&nbsp;"offeringId": "{courseId}" (null or an existing courseId)  
+&nbsp;&nbsp;"offeringType": "XXX",  
+&nbsp;&nbsp;"department": "XXX",  
+&nbsp;&nbsp;"perUnitPrice": 3000   
 }  
 Delete: /registerOffering/{registrarId}  
 
