@@ -31,7 +31,8 @@ Post: /students
 &nbsp;&nbsp;"lastName": "XXX",  
 &nbsp;&nbsp;"joiningDate": "XXX",  
 &nbsp;&nbsp;"department": "XXX",  
-&nbsp;&nbsp;"registeredCourses": [{courseId}, {courseId}...]    
+&nbsp;&nbsp;"registeredCourses": [{courseId}, {courseId}...],  
+&nbsp;&nbsp;"emailId": "XXX", (cannot be null or empty)  
 }  
 Put: /students/{studentId}  
 {  
@@ -40,9 +41,12 @@ Put: /students/{studentId}
 &nbsp;&nbsp;"lastName": "XXX",  
 &nbsp;&nbsp;"joiningDate": "XXX",  
 &nbsp;&nbsp;"department": "XXX",  
-&nbsp;&nbsp;"registeredCourses": [{courseId}, {courseId}...]    
+&nbsp;&nbsp;"registeredCourses": [{courseId}, {courseId}...],  
+&nbsp;&nbsp;"emailId": "XXX", (cannot be null or empty)  
 }  
 Delete: /students/{studentId}  
+Post (Register Courses, text/plain): /{studentId}/register  
+{courseId},{courseId}...  (splitted by ',')
 
 * Courses:  
 Get all: /courses  
@@ -81,6 +85,27 @@ Put: /boards/{boardId}
 &nbsp;&nbsp;"courseId": "{courseId}" (null or an existing courseId)  
 }  
 Delete: /boards/{boardId}  
+
+* Registrar:  
+Get all: /registerOffering  
+Get one: /registerOffering/{registrarId}  
+Post: /registerOffering   
+{  
+&nbsp;&nbsp;"boardId": "{registrarId}", (cannot be null or empty)  
+&nbsp;&nbsp;"courseId": "{offeringId}" (null or an existing courseId)  
+&nbsp;&nbsp;"boardId": "XXX",  
+&nbsp;&nbsp;"courseId": "XXX",  
+&nbsp;&nbsp;"courseId": 3000   
+}  
+Put: /registerOffering/{registrarId}  
+{  
+&nbsp;&nbsp;"boardId": "{registrarId}", (cannot be null or empty)  
+&nbsp;&nbsp;"courseId": "{offeringId}" (null or an existing courseId)  
+&nbsp;&nbsp;"boardId": "XXX",  
+&nbsp;&nbsp;"courseId": "XXX",  
+&nbsp;&nbsp;"courseId": 3000   
+}  
+Delete: /registerOffering/{registrarId}  
 
 * Announcement:  (if a board has been deleted, all announcements related to the board will be removed)  
 Get all: /announcements  
